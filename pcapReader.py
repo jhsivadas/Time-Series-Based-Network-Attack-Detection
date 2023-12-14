@@ -1,3 +1,6 @@
+# NOTE: this needs to be run using root permission (i.e. sudo python3 pcapReader.py)
+# TODO: Add real time feature generation, add ability prediction
+
 from scapy.all import sniff
 from scapy.layers.inet import IP, TCP, UDP
 import pandas as pd
@@ -18,15 +21,17 @@ class pcap_reader:
             'Packet Length' : len(bytes(packet))}
             
         if (not self.pcap_window.shape[0] or (fid['Time'] - self.pcap_window.iloc[0, 0]) > self.time_window):
+            print(self.pcap_window)
             self.pcap_window = pd.DataFrame([fid])
 
         else:
             self.pcap_window = pd.concat([self.pcap_window, pd.DataFrame([fid])])
         
-        print(self.pcap_window)
+        
             
     def pcap_streamer(self, network_interface):
         sniff(iface=network_interface, prn=self.packet_handler, store=0)
 
-window = pcap_reader()
-window.pcap_streamer('en0')
+        
+# window = pcap_reader()
+# window.pcap_streamer('en0')
