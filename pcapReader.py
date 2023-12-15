@@ -1,12 +1,14 @@
 # NOTE: this needs to be run using root permission (i.e. sudo python3 pcapReader.py)
 # TODO: Add prediction ability, add pcap to pandas
 
-from scapy.all import sniff
-from scapy.layers.inet import IP, TCP, UDP
+from scapy.all import sniff, PcapReader, rdpcap
+from scapy.layers.inet import IP
 import pandas as pd
 from scipy.stats import entropy
 import numpy as np
 import time
+import asyncio
+from netml.pparser.parser import PCAP
 
 class pcap_reader:
 
@@ -21,7 +23,7 @@ class pcap_reader:
         fid = {'Time' : packet.time, 
             'Source IP' : packet[IP].src, 
             'Destination IP' : packet[IP].dst, 
-            'Packet Length' : len(bytes(packet))}
+            'Packet Length' : len(packet)}
             
         if (not self.pcap_window.shape[0] or (fid['Time'] - self.pcap_window.iloc[0, 0]) > self.time_window):
             print(self.adjust_data())
@@ -29,8 +31,7 @@ class pcap_reader:
 
         else:
             self.pcap_window = pd.concat([self.pcap_window, pd.DataFrame([fid])])
-        
-        
+         
             
     def pcap_streamer(self, network_interface, mode='DISPLAY'):
         sniff(iface=network_interface, prn=self.packet_handler, store=0)
@@ -86,7 +87,21 @@ class pcap_reader:
         new_df.reset_index(drop=True, inplace=True)
 
         return new_df
+    
+    def read_packet(self, packet):
+        return {'Time': packet.time, 'Source IP': packet[IP].src, 'Destination IP': packet[IP].dst,
+                'Packet Length': len(packet)}
 
+    def pcap2pandas(self, pcap_file):
+        results = []
+
+        with PcapReader(pcap_file) as pcap_reader:
+            results = [self.read_packet(packet) for packet in pcap_reader if IP in packet]
+
+        df = pd.DataFrame(results)
+        print(df)
         
-# window = pcap_reader()
-# window.pcap_streamer('en0')
+window = pcap_reader()
+start = time.time()
+pcap = window.pcap_to_dataframe("DDoS-HTTP_Flood-.pcap")
+print(time.time() - start)
