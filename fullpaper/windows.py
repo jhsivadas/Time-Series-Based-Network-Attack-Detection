@@ -14,7 +14,7 @@ ddos_http.set_index('Unnamed: 0', inplace=True)
 
 ############### #Window Testing ###################
 
-window_max = 5
+window_max = 50
 window_min = 1
 window_interval = 1
 
