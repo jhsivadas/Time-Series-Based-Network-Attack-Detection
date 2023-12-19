@@ -100,12 +100,15 @@ class pcap_reader:
         with Pool(processes=num_processes) as pool:
             results = pool.map(self.read_sub_pcap, packet_range)
 
-        tmp = []
+        packets = []
         for res in results:
             for packet in res:
-                tmp.append(packet)
+                packets.append(packet)
 
-        return pd.DataFrame(tmp)
+        packets = pd.DataFrame(packets)
+        packets = packets.sort_values(by='Time')
+        packets = packets.reset_index().iloc[:, 2:]
+        return packets
         
     def read_sub_pcap(self, input):
         file_path, start, end = input
@@ -121,10 +124,9 @@ class pcap_reader:
         return results
     
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    start = time.time()
-    window = pcap_reader()
-    res = window.pcap2pandas("DDoS-HTTP_Flood-.pcap", 2_879_833)
-    res.to_csv("check1.csv")
-    print(time.time()-start)
+#     start = time.time()
+#     window = pcap_reader()
+#     res = window.pcap2pandas("../../DDoS-HTTP_Flood-.pcap", 2_879_833) 
+#     print(time.time()-start)
