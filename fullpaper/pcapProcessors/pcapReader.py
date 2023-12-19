@@ -1,14 +1,15 @@
 # NOTE: this needs to be run using root permission (i.e. sudo python3 pcapReader.py)
 # TODO: Add prediction ability, add pcap to pandas
 
-from scapy.all import sniff, PcapReader, rdpcap
+from scapy.all import sniff, PcapReader
 from scapy.layers.inet import IP
 import pandas as pd
 from scipy.stats import entropy
 import numpy as np
 import time
-import asyncio
 from netml.pparser.parser import PCAP
+from fastScapy import PcapReader2
+from multiprocessing import Pool
 
 class pcap_reader:
 
@@ -92,16 +93,38 @@ class pcap_reader:
         return {'Time': packet.time, 'Source IP': packet[IP].src, 'Destination IP': packet[IP].dst,
                 'Packet Length': len(packet)}
 
-    def pcap2pandas(self, pcap_file):
-        results = []
+    def pcap2pandas(self, file_path, num_rows):
+        num_processes = 8
+        packet_range = [(file_path, i, i + num_rows // num_processes - 1) for i in range(0, num_rows, num_rows // num_processes)]
 
-        with PcapReader(pcap_file) as pcap_reader:
-            results = [self.read_packet(packet) for packet in pcap_reader if IP in packet]
+        with Pool(processes=num_processes) as pool:
+            results = pool.map(self.read_sub_pcap, packet_range)
 
-        df = pd.DataFrame(results)
-        print(df)
+        tmp = []
+        for res in results:
+            for packet in res:
+                tmp.append(packet)
+
+        return pd.DataFrame(tmp)
         
-window = pcap_reader()
-start = time.time()
-pcap = window.pcap_to_dataframe("DDoS-HTTP_Flood-.pcap")
-print(time.time() - start)
+    def read_sub_pcap(self, input):
+        file_path, start, end = input
+        results = []
+        with PcapReader2(file_path) as reader:
+            reader.goForward(start)
+
+            for i, packet in enumerate(reader):
+                if i + start > end:
+                    break
+                if IP in packet:
+                    results.append({'Time': packet.time, 'Source IP': packet[IP].src, 'Destination IP': packet[IP].dst, 'Packet Length': len(packet)})
+        return results
+    
+
+if __name__ == '__main__':
+
+    start = time.time()
+    window = pcap_reader()
+    res = window.pcap2pandas("DDoS-HTTP_Flood-.pcap", 2_879_833)
+    res.to_csv("check1.csv")
+    print(time.time()-start)
